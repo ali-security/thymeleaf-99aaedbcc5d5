@@ -1,0 +1,37 @@
+name: seal-build
+on:
+  workflow_dispatch:
+    inputs:
+      test-filter:
+        description: "Surefire -Dtest selector; empty runs the full suite"
+        required: false
+        default: ""
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      LC_ALL: C.UTF-8
+      LANG: C.UTF-8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - name: Build and test (thymeleaf-spring6 + core/spring6 test modules)
+        run: |
+          MODULES=lib/thymeleaf-spring6,tests/thymeleaf-tests-core,tests/thymeleaf-tests-spring6
+          if [ -n "${{ inputs.test-filter }}" ]; then
+            mvn -B -e --no-transfer-progress clean package -pl "$MODULES" -am \
+              -Dtest='${{ inputs.test-filter }}' -Dsurefire.failIfNoSpecifiedTests=false
+          else
+            mvn -B -e --no-transfer-progress clean package -pl "$MODULES" -am
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: thymeleaf-spring6-jar
+          path: lib/thymeleaf-spring6/target/thymeleaf-spring6-*.RELEASE.jar
+          if-no-files-found: error
